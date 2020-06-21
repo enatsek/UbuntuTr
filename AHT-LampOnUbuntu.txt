@@ -1,0 +1,45 @@
+UbuntudaLamp: Ubuntu 20.04 Üzerinde LAMP Yığını
+
+#---Copyright (C) 2020 Exforge exforge@karasite.com
+# Bu program özgür yazılımdır: Özgür Yazılım Vakfı tarafından yayımlanan 
+# GNU Genel Kamu Lisansı’nın sürüm 3 ya da daha sonraki sürümlerinin 
+# hükümleri altında yeniden dağıtabilir ve/veya değiştirebilirsiniz.
+# Bu program, yararlı olması umuduyla dağıtılmış olup, programın BİR 
+# TEMİNATI YOKTUR; TİCARETİNİN YAPILABİLİRLİĞİNE VE ÖZEL BİR AMAÇ İÇİN 
+# UYGUNLUĞUNA dair bir teminat da vermez. Ayrıntılar için GNU Genel Kamu 
+# Lisansı’na göz atınız.
+# Bu programla birlikte GNU Genel Kamu Lisansı’nın bir kopyasını elde 
+# etmiş olmanız gerekir. Eğer elinize ulaşmadıysa 
+# <http://www.gnu.org/licenses/> adresine bakınız.
+
+
+#---Özellikler
+# Brian Boucheron'a ait aşağıdaki adresteki döküman temel alınmıştır:
+# https://www.digitalocean.com/community/tutorials/how-to-install-linux-apache-mysql-php-lamp-stack-ubuntu-18-04
+# L: Ubuntu Server 20.04
+# A: Apache 2 
+# M: MariaDB (Mysql seçeneği de seçilebilir)
+# P: PHP (Python veya Perl de seçilebilir)
+
+
+#--- 1. Apache 2 Yükle
+sudo apt update
+sudo apt install apache2
+
+#--- 2. MariaDB Yükle ve Ayarla
+# 2.1. Yükle
+sudo apt install mariadb-server
+# 2.1. Mariadb'yi Güvenlileştir
+sudo mysql_secure_installation
+#   Varsayılan cevapları verin, şifre sorulacak, iyi bir şifre seçmenizde yarar var
+# 2.2. Mariadb root kullanıcısını ayarla
+sudo mariadb
+#  Mariadb komut satırında çalıştırın
+UPDATE mysql.user SET plugin = 'mysql_native_password' WHERE USER='root';
+FLUSH PRIVILEGES;
+exit
+
+#--- 3. PHP Yükle
+sudo apt install php libapache2-mod-php php-mysql
+
+

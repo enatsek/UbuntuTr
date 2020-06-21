@@ -1,0 +1,167 @@
+UbuntudaWordpress: Ubuntu 20.04 Üzerinde Wordpress
+
+#---Copyright (C) 2020 Exforge exforge@karasite.com
+# Bu program özgür yazılımdır: Özgür Yazılım Vakfı tarafından yayımlanan 
+# GNU Genel Kamu Lisansı’nın sürüm 3 ya da daha sonraki sürümlerinin 
+# hükümleri altında yeniden dağıtabilir ve/veya değiştirebilirsiniz.
+# Bu program, yararlı olması umuduyla dağıtılmış olup, programın BİR 
+# TEMİNATI YOKTUR; TİCARETİNİN YAPILABİLİRLİĞİNE VE ÖZEL BİR AMAÇ İÇİN 
+# UYGUNLUĞUNA dair bir teminat da vermez. Ayrıntılar için GNU Genel Kamu 
+# Lisansı’na göz atınız.
+# Bu programla birlikte GNU Genel Kamu Lisansı’nın bir kopyasını elde 
+# etmiş olmanız gerekir. Eğer elinize ulaşmadıysa 
+# <http://www.gnu.org/licenses/> adresine bakınız.
+
+
+#---Özellikler
+# Brian Boucheron'a ait aşağıdaki adresteki döküman temel alınmıştır:
+# https://www.digitalocean.com/community/tutorials/how-to-install-wordpress-with-lamp-on-ubuntu-18-04
+# Benim Sunucum: www.karasite.com
+# Wordpress Mariadb Veritabanı Adı: wordpress
+# Wordpress Mariadb Veritabanı Kullanıcısı: wordpressuser
+# wordpressuser Kullanıcısının Şifresi: pAsswOrd1234
+# Wordpress sitesinin dizini: /var/www/wordpress
+
+#---0. LAMP Yığınının Yüklenmesi 
+#   Ubuntu'da LAMP dökümanına bakınız
+
+#---1. Websitesi Konfigürasyonu (Daha önce yapmadıysanız)
+# 1.1. Sitenin dizinini oluştur
+sudo mkdir /var/www/wordpress
+# 1.1. Web sitesi için bir konfigürasyon dosyası oluştur.
+sudo nano /etc/apache2/sites-available/karasite.com.conf
+#____________________________________________________________________
+<VirtualHost *:80>
+        ServerAdmin postmaster@karasite.com
+        ServerName www.karasite.com
+        ServerAlias karasite.com
+        DocumentRoot /var/www/wordpress
+        ErrorLog ${APACHE_LOG_DIR}/karasite.com-error.log
+        CustomLog ${APACHE_LOG_DIR}/karasite.com-access.log combined
+</VirtualHost>
+#____________________________________________________________________
+# 1.2. Websitesini etkinleştir
+sudo a2ensite karasite.com.conf
+# 1.3. Apache'yi tekrar yükle
+sudo systemctl reload apache2
+
+#---2. Wordpress için MariaDB Veritabanı ve kullanıcısı oluştur
+# 2.1. MariaDB'ye login ol
+mariadb -u root -p
+# 2.2. wordpress adında bir veritabanı ve wordpressuser adında bir kullanıcı
+#      oluştur ve bu kullanıcıya veritabanında gerekli yetkileri ver.
+CREATE DATABASE wordpress DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+CREATE USER 'wordpressuser'@'localhost' IDENTIFIED BY 'pAsswOrd1234';
+GRANT ALL ON wordpress.* TO 'wordpressuser'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+
+#---3. Gerekli PHP eklentilerini yükle
+sudo apt update
+sudo apt install php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip
+#   Apache'yi tekrar başlat
+sudo systemctl restart apache2
+
+#--- 4. Apache'yi Wordpress için Ayarla
+# 4.1. Site konfigürasyonunu editleyerek ve override dizinler ekleyerek
+#      Wordpress'in .htaccess dosyalarını etkinleştir
+sudo nano /etc/apache2/sites-available/karasite.com.conf
+#   Aşağıdaki satırları DocumentRoot satırının hemen altına ekle
+#____________________________________
+<Directory /var/www/wordpress/>
+    AllowOverride All
+</Directory>
+#____________________________________
+# 4.2. Apache Rewrite modulünü etkinleştir
+sudo a2enmod rewrite
+# 4.3. (Seçimlik) Apache konfigürasyonunun durumunu kontrol et
+sudo apache2ctl configtest
+# 4.4. Apache'yi tekrar başlat
+sudo systemctl restart apache2
+
+#--- 5. Wordpress İndir
+#    Wordpress apt install ile de kurulabilir, ancak biz en
+#      yeni versiyonunu doğrudan kaynağından indirmeyi tercih ediyoruz.
+# 5.1. temp dizinine git, wordpress indir ve aç
+cd /tmp
+curl -O https://wordpress.org/latest.tar.gz
+tar xzvf latest.tar.gz
+# 5.2. Dosyaları yerlerine koymadan önce birkaç ekleme yapmamız gerekiyor
+#   Boş bir .htaccess dosyası yarat
+touch /tmp/wordpress/.htaccess
+#   Örnek konfigürasyon dosyasını asıl konfigürasyon dosyasına kopyala
+cp /tmp/wordpress/wp-config-sample.php /tmp/wordpress/wp-config.php
+# 5.3. Wordpress dosyalarını asıl yerlerine kopyala
+sudo cp -a /tmp/wordpress/. /var/www/wordpress
+
+#--- 6. Wordpress Dizini Konfigürasyonu
+# 6.6. Sahiplik ve izinleri tanımla
+#     Hepsinin sahibi www-data:www-data olacak
+sudo chown -R www-data:www-data /var/www/wordpress
+#     Bütün dosyalar 640, bütün dizinler 750 olacak
+sudo find /var/www/wordpress/ -type d -exec chmod 750 {} \;
+sudo find /var/www/wordpress/ -type f -exec chmod 640 {} \;
+# 6.2. Wordpress konfigürasyon dosyasını ayarla
+# 6.2.1. Güvenli metinleri üret
+#    Wordpress konfigürasyonu için bazı güvenli metinlere ihtiyaç duyar.
+#       Şimdi onları üreteceğiz.
+curl -s https://api.wordpress.org/secret-key/1.1/salt/
+#    Programın çıktısı aşağıdakine benzer bir şekilde olacaktır.
+#    Onları bir metin dosyasına kopyalayın:
+#______________________________________________________________________________________________
+define('AUTH_KEY',         'O`tLoX^0[pT24ty<YOByEP#}wBtd|7M!9^-az.W_v{`;+!*PX_9/A#^#}SL@I_wD');
+define('SECURE_AUTH_KEY',  '-U]7Eu_Bbh!tA/5lk3.eDRzGrY<%i,:cn*yBOiE^*zZHK&RTbHmv]^+[[1v49=bq');
+define('LOGGED_IN_KEY',    'VHYd-]>SDIsT_^-;>_0DBV:2}>u^wI;]T>IqXr}++h1sRjQM%U^I0ijVwAi? (yB');
+define('NONCE_KEY',        'lui4^EuI3U-m8m!IUI%>;+)r[dJW`w2pl@g4JU==(,ipCi|EC)+vo,&2rAR Dm+-');
+define('AUTH_SALT',        'W,>S!kG,KCPZ/`Y7;(hpL,1-M2lanZz(3)kdds-{;t9D(X&Qy:+0^H&3jE%WS:L4');
+define('SECURE_AUTH_SALT', 'f*q%x{M6#GQ|L{U|!UoI~`8(71};e}Xm;4#e^J/b&DC<DO=Xv6$caAC<2q4gs}^0');
+define('LOGGED_IN_SALT',   '=HN;=E:zl1-X:5w:MTw3LHV^?VP})Z}&T*P!zvAG|R=S>6;~Xz|rh@S#MrSH2FA)');
+define('NONCE_SALT',       '`d)>*Ae)9g<Aaa1eQ*9HlqY-|__kE5,Nte2UAMJO3ro=9T#y=,|-/^D(&+XQ:,la');
+#______________________________________________________________________________________________
+# 6.2.2. Güvenli metinleri WP konfigürasyon dosyasına ekle
+sudo nano /var/www/wordpress/wp-config.php
+#    Dosyada aşağıdaki bölüme gelin ve bu bölümü metin dosyasına kopyaladığınız
+#    metinle kaplayın
+#___________________________________________________________     
+define( 'AUTH_KEY',         'put your unique phrase here' );
+define( 'SECURE_AUTH_KEY',  'put your unique phrase here' );
+define( 'LOGGED_IN_KEY',    'put your unique phrase here' );
+define( 'NONCE_KEY',        'put your unique phrase here' );
+define( 'AUTH_SALT',        'put your unique phrase here' );
+define( 'SECURE_AUTH_SALT', 'put your unique phrase here' );
+define( 'LOGGED_IN_SALT',   'put your unique phrase here' );
+define( 'NONCE_SALT',       'put your unique phrase here' );
+#___________________________________________________________
+#
+#   Hala dosyanın içindeyken, biraz yukarıda aşağıdaki alana gelin
+#______________________________________________________________
+/** The name of the database for WordPress */
+define( 'DB_NAME', 'database_name_here' );
+/** MySQL database username */
+define( 'DB_USER', 'username_here' );
+/** MySQL database password */
+define( 'DB_PASSWORD', 'password_here' );
+/** MySQL hostname */
+define( 'DB_HOST', 'localhost' );
+/** Database Charset to use in creating database tables. */
+define( 'DB_CHARSET', 'utf8' );
+/** The Database Collate type. Don't change this if in doubt. */
+define( 'DB_COLLATE', '' );
+#______________________________________________________________
+#
+#   Aşağıdaki değişiklikleri yapın:
+# database_name_here : wordpress
+# username_here : wordpressuser
+# password : pAsswOrd1234
+#
+#  Aşağıdaki satırı ekleyin:
+#_____________________________
+define('FS_METHOD', 'direct');
+#_____________________________
+
+#--- 7. Wordpress siteniz artık hazır, tarayıcınızda açabilirsiniz
+http://www.karasite.com
+
+
+
+
