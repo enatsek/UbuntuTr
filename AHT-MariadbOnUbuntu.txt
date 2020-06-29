@@ -1,0 +1,248 @@
+Ubuntu'da Mariadb: Ubuntu 20.04 Üzerinde MariaDB Dökümanı
+
+
+#---Copyright (C) 2020 Exforge exforge@karasite.com
+# Bu program özgür yazılımdır: Özgür Yazılım Vakfı tarafından yayımlanan 
+# GNU Genel Kamu Lisansı’nın sürüm 3 ya da daha sonraki sürümlerinin 
+# hükümleri altında yeniden dağıtabilir ve/veya değiştirebilirsiniz.
+# Bu program, yararlı olması umuduyla dağıtılmış olup, programın BİR 
+# TEMİNATI YOKTUR; TİCARETİNİN YAPILABİLİRLİĞİNE VE ÖZEL BİR AMAÇ İÇİN 
+# UYGUNLUĞUNA dair bir teminat da vermez. Ayrıntılar için GNU Genel Kamu 
+# Lisansı’na göz atınız.
+# Bu programla birlikte GNU Genel Kamu Lisansı’nın bir kopyasını elde 
+# etmiş olmanız gerekir. Eğer elinize ulaşmadıysa 
+# <http://www.gnu.org/licenses/> adresine bakınız.
+
+#---Özellikler
+# Ubuntu 20.04 üzerinde 2 tane Mariadb kurulumu, konfigürastonu, basit kullanıcı yönetimi 
+#   ve veritabanı yönetimi
+# Jay LaCroix tarafından yazılan Mastering Ubuntu Server 2nd Ed. kitabı temel alınmıştır.
+#   Bu kitap Ubuntu Sunucu ile tanışmamı sağladı, kendisine bu mükemmel kitap için
+#   çok teşekkür ederim.
+#   https://www.packtpub.com/networking-and-servers/mastering-ubuntu-server-second-edition
+# Bu dökümandaki hemen hemen herşey MySQL ile de yapılabilir. MariaDB, MySQL'den türetilmiştir.
+#   Ben MySQL yerine MariaDB kullanmayı tercih ediyorum, çünkü Or*cle'ı pek sevmiyorum.
+# !!! Kesinlikle aynı sunucuya hem MariaDB hem de MySQL kurmayın !!!
+
+
+
+#---1. Kurulum ve Güvenlileştirme
+# 1.1. MariaDB kur
+sudo apt install mariadb-server
+# 1.2. Kurulumun düzgünlüğünü kontrol et
+systemctl status mariadb
+#
+# 1.3. MariaDB'yi güvenlileştir
+#   Bütün sorulara Y olarak yanıt verin. Şifre istediğinde güvenli bir şifre verin.
+sudo mysql_secure_installation
+#
+# 1.4. Mariadb komut satırına girin
+# çıkmak için EXIT; yazın
+sudo mariadb
+
+#---2. Yapılandırma (Konfigürasyon) Dosyaları
+# 2.1. Yapılandırma dosyaları /etc/mysql dizinindedir
+#_______________________________
+debian.cnf
+debian-start
+mariadb.cnf
+my.cnf
+my.cnf.fallback
+#  yukarıdaki dosyalara ek olarak aşağıdaki dizinler de vardır:
+conf.d
+mariadb.conf.d
+#____________________________
+#
+# 2.2. Örnek /etc/mysql/debian.cnf dosyası
+#____________________________
+[client]
+host = localhost
+user= root
+password =
+socket= /var/run/mysqld/mysqld.sock
+[mysql_upgrade]
+host = localhost
+user = root
+password =
+socket = /var/run/mysqld/mysqld.sock
+basedir = /usr
+#____________________________
+
+
+#---3. MariaDB Komut Satırı
+# 3.1. Mariadb komut satırı iki şekilde çalıştırılabilir:
+sudo mariadb
+#  veya
+mariadb -u root -p
+# 3.2. İkinciyi kullanabilmek için önce bir ayar yapmak gerekir. sudo mariadb komutuyla
+#    MariaDB komut satırına girip, aşağıdaki komutu çalıştırmak gerekir:
+UPDATE mysql.user SET plugin = 'mysql_native_password' WHERE USER='root';
+FLUSH PRIVILEGES;
+EXIT;
+# Artık aşağıdaki şekilde kullanabiliriz:
+mariadb -u root -p
+
+
+#---4. Temel Kullanıcı Yönetimi
+# !!! Bütün komutlar Mariadb komut satırında çalıştırılmalıdır. !!!
+# 4.1. Veritabanlarını yönetmek için en iyi yol sadece bilgisayar üzerinde yetkili
+#    bir admin kullanıcısı yaratmaktır. Şifreyi değiştirmeyi unutmayın.
+CREATE USER 'admin'@'localhost' IDENTIFIED BY 'password';
+FLUSH PRIVILEGES;
+# 4.2. Admin kullanıcısını sadece bilgisayar üzerinde değil, uzaktan da kullanmak için
+#    komutu aşağıdaki şekilde düzeltebilirsiniz.
+CREATE USER 'admin'@'%' IDENTIFIED BY 'password';
+FLUSH PRIVILEGES;
+#
+# 4.3. Admin kullanıcısına tam yetki ver, diğer kullanıcıları yetkilendirme kısmı hariç
+GRANT ALL PRIVILEGES ON *.* TO 'admin'@'localhost';
+FLUSH PRIVILEGES;
+#
+# 4.4. Diğer kullanıcıları da yetkilendirebilmesini isterseniz, aşağıdaki şekilde değiştirin:
+GRANT ALL PRIVILEGES ON *.* TO 'admin'@'localhost' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+#
+# 4.5. Sadece okuma yetkili bir kullanıcı yarat
+GRANT SELECT ON *.* TO 'readonlyuser'@'localhost' IDENTIFIED BY 'password';
+#
+# 4.6. Veritabanı kullanıcılarını listele
+SELECT HOST, USER, PASSWORD FROM mysql.user;
+#
+# 4.7. Tek bir veritabanında yetkili, sadece okuma yetkili bir kullanıcı yarat:
+GRANT SELECT ON mysampledb.* TO 'appuser'@'localhost' IDENTIFIED BY 'password';
+#
+# 4.8. Bir kullanıcıya bir veritabanı üzerinde tam yetki ver:
+GRANT ALL ON mysampledb.* TO 'appuser'@'localhost' IDENTIFIED BY 'password';
+#
+# 4.9. Bir kullanıcının yetkilerini göster:
+SHOW GRANTS FOR 'appuser'@'localhost';
+#
+# 4.10. Kullanıcı silme:
+DELETE FROM mysql.user WHERE user='myuser' AND host='localhost';
+
+
+#---5. Veritabanı İşlemleri
+# !!! Bütün komutlar Mariadb komut satırında çalıştırılmalıdır. !!!
+# 5.1. Bir veritabanı yarat
+CREATE DATABASE mysampledb;
+#
+# 5.2. Veritabanlarını listele
+SHOW DATABASES;
+#
+# 5.3. Bir veritabanının çalışma alanına gir
+#   (Bir veritabanını varsayılan veritabanı yap)
+USE mysampledb;
+#
+# 5.4. Tablo yarat
+CREATE TABLE Employees (Name char(15), Age int(3), Occupation char(15));
+#
+# 5.5. Tablonun kolonlarını listele
+SHOW COLUMNS IN Employees;
+#
+# 5.6. Tabloya satır ekle
+INSERT INTO Employees VALUES ('Joe Smith', '26', 'Ninja');
+#
+# 5.7. Tablonun içeriğini listele
+SELECT * FROM Employees;
+#
+# 5.8. Tablodan bir kayıt sil
+DELETE FROM Employees WHERE Name = 'Joe Smith';
+#
+# 5.9. Bir tabloyu tamamen sil (Drop)
+DROP TABLE Employees;
+#
+# 5.10. Bütün veritabanını sil (Drop):
+DROP DATABASE mysampledb;
+
+
+#---6. Yedek Alma ve Geri Yükleme
+# 6.1. Veritabanını Yedekle
+mysqldump -u admin -p --databases mysampledb > mysampledb.sql
+#
+# 6.2. Geri Yükle
+mariadb -u admin -p < mysampledb.sql
+
+
+#---7. Aktif-Pasif Yineleme Yapılandırması (Master-Slave Replication)
+#   Bir sunucudaki veritabanı, otomatik olarak başka bir sunucuda yedeklenir.
+# 7.1. Özellikler ve Ön İşlemler. 
+#   Aktif Sunucu: 172.16.63.128
+#   Pasif Sunucu:  172.16.63.131
+#   Yineleme Kullanıcısı: 'replicate'@'172.16.63.131'
+#   Yin. Kullanıcısı Şifresi: Pass1234 
+#   Yinelenecek Veritabanı: mysampledb
+#
+#   İki sunucuya da mariadb yükleyin,
+#   1. ve 3. adımları her iki sunucuda da gerçekleştirin
+#   5.1.'den 5.7.'ye kadar olan adımları aktif sunucuda gerçekleştirin
+#
+#   !!! Lütfen Unutmayın: !!! 
+#      Aktif-Pasif yineleme yapmak, yedekleme gerekliliğini ortadan kaldırmaz.
+#      Herhangi bir şey yanlışlıkla silinirse, pasif sunucuda da silinir.
+#      Bir üretim sunucusu kullanıyorsanız, en azından günlük ve haftalık olarak
+#      yedeklemeniz gerekir.
+#
+# 7.2. Aktif Sunucu Yapılandırması
+# 7.2.1. Aktif sunucuda bin log yapılandırması
+sudo nano /etc/mysql/conf.d/mysql.cnf
+#__________________
+[mysql]
+[mysqld]
+log-bin
+binlog-do-db=mysampledb
+server-id=1
+#__________________
+# 7.2.2. Bind adresini dışarıya aç
+sudo nano /etc/mysql/mariadb.conf.d/50-server.cnf
+# Aşağıdaki satırı değiştireceksiniz:
+#_______________________
+bind-address = 127.0.0.1
+#_______________________
+#  aşağıdaki hale getirin:
+#_______________________
+bind-address = 0.0.0.0
+#_______________________
+# 7.2.3. Yineleme kullanıcısını yaratın
+#   Aşadağıdaki komutu aktif sunucu Mariadb komut satırında çalıştırın
+GRANT REPLICATION SLAVE ON *.* to 'replicate'@'172.16.63.131' identified by 'Pass1234';
+#
+# 7.2.4. Aktif mariadb sunucusunu yeniden başlatın
+sudo systemctl restart mariadb
+#
+# 7.2.5. İlk tüm yineleme için Aktif sunucuyu kilitleyin
+#   Aktif sunucu Mariadb komut satırında çalıştırın
+FLUSH TABLES WITH READ LOCK;
+#
+# 7.2.6. Aktif sunucudaki veritabanının yedeğini alın
+mysqldump -u admin -p --databases mysampledb > mysampledb.sql
+# Yedek almış olduğunuz dosyayı (mysampledb.sql) pasif sunucuya da kopyalamanız gerekecektir.
+#
+# 7.3. Pasif Sunucu Yapılandırması
+# 7.3.1. Aktif sunucuda aldığınız yedeği, pasif sunucuda geri yükleyin
+mariadb -u root -p < mysampledb.sql
+#
+# 7.3.2. Pasif sunucu yapılandırma dosyasını güncelleyin
+sudo nano /etc/mysql/conf.d/mysql.cnf
+#__________________
+[mysql]
+[mysqld]
+server-id=2
+#__________________
+#  Birden fazla pasif sunucu kuracaksanız, her birine farklı server-id vermeniz gerekir
+#
+# 7.3.3. Pasif sunucudaki mariadb'yi yeniden başlat
+sudo systemctl restart mariadb
+#
+# 7.3.4. Aşağıdaki komutları pasif sunucu mariadb konut satırında çalıştırın
+CHANGE MASTER TO MASTER_HOST="172.16.63.128", MASTER_USER='replicate', MASTER_PASSWORD='Pass1234';
+# Pasif sunucunun durumuna bakmak için (mariadb komut satırı)
+SHOW SLAVE STATUSG;
+# Slave_IO_State alanı boşsa (mariadb komut satırı)
+START SLAVE;
+#
+# 7.4. Aktif sunucudaki Mariadb kilidini kaldırın
+#   aktif sunucunun mariadb komut satırında çalıştırın
+UNLOCK TABLES;
+# 7.5. İşlem tamamlandı. Aktif sunucudaki veritabanında değişiklikler yaparak test edebilirsiniz.
+#   Birkaç saniye içinde pasif sunucuda da değişiklikler aktif olacaktır.
+
