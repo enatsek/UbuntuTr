@@ -1,0 +1,263 @@
+UbuntudaBasitEpostaSunucusu: Ubuntu 18.04 ve 20.04 Üzerinde Basit Eposta Sunucusu
+
+#---Copyright (C) 2020 Exforge exforge@karasite.com
+# Bu program özgür yazılımdır: Özgür Yazılım Vakfı tarafından yayımlanan 
+# GNU Genel Kamu Lisansı’nın sürüm 3 ya da daha sonraki sürümlerinin 
+# hükümleri altında yeniden dağıtabilir ve/veya değiştirebilirsiniz.
+# Bu program, yararlı olması umuduyla dağıtılmış olup, programın BİR 
+# TEMİNATI YOKTUR; TİCARETİNİN YAPILABİLİRLİĞİNE VE ÖZEL BİR AMAÇ İÇİN 
+# UYGUNLUĞUNA dair bir teminat da vermez. Ayrıntılar için GNU Genel Kamu 
+# Lisansı’na göz atınız.
+# Bu programla birlikte GNU Genel Kamu Lisansı’nın bir kopyasını elde 
+# etmiş olmanız gerekir. Eğer elinize ulaşmadıysa 
+# <http://www.gnu.org/licenses/> adresine bakınız.
+
+#---Özellikler
+# Aşağıdaki değerli döküman temel alınmıştır:
+#    https://www.server-world.info/en/note?os=Ubuntu_18.04&p=mail&f=1
+# SMTP: Postfix
+# IMAP: Dovecot
+# Sanal alan (virtual domain) yoktur, sadece Linux sunucusunun kullanıcıları eposta 
+#    adresine sahip olacaklardır.
+# Sistem mümkün olduğunca basit tutulmaya çalışılmıştır.
+#
+# İşletim Sistemi: Ubuntu 20.04 
+# Bilgisayar Adı: mail.karasite.com
+# Eposta Alanı: karasite.com
+
+
+#---1. Postfix Kur ve Yapılandır
+# 1.1. Postfix ve SASL Kur
+sudo apt -y install postfix sasl2-bin 
+#   "No configuration" seçeneğini seçin, biz elle yapılandıracağız
+#
+# 1.2. Postfix için standart bir yapılandırma dosyası oluştur
+sudo cp /usr/share/postfix/main.cf.dist /etc/postfix/main.cf
+#
+# 1.3. Postfix yapılandırma dosyasını aşağıdaki şekilde düzenleyin
+sudo nano /etc/postfix/main.cf 
+#
+# Satır 78 civarı: yorumu kaldır (uncomment)
+mail_owner = postfix
+#
+# Satır 94 civarı: yorumu kaldır ve bilgisayar adını ekle
+myhostname = mail.karasite.com
+#
+# Satır 102 civarı: yorumu kaldır ve alan adını ekle
+mydomain = karasite.com
+#
+# Satır 123 civarı: yorumu kaldır
+myorigin = $mydomain
+#
+# Satır 137 civarı: yorumu kaldır
+inet_interfaces = all
+#
+# Satır 185 civarı: yorumu kaldır
+mydestination = $myhostname, localhost.$mydomain, localhost, $mydomain
+#
+# Satır 228 civarı: yorumu kaldır
+local_recipient_maps = unix:passwd.byname $alias_maps
+#
+# Satır 270 civarı: yorumu kaldır
+mynetworks_style = subnet
+#
+# Satır 287 civarı: kendi yerel ağınızı (varsa) ekleyin
+mynetworks = 127.0.0.0/8, 10.0.0.0/24
+#
+# Satır 407 civarı: yorumu kaldır
+alias_maps = hash:/etc/aliases
+#
+# Satır 418 civarı: yorumu kaldır
+alias_database = hash:/etc/aliases
+#
+# Satır 440 civarı: yorumu kaldır
+home_mailbox = Maildir/
+#
+# Satır 576 civarı: yorumlu hale getirin ve ekleyin
+#smtpd_banner = $myhostname ESMTP $mail_name (Ubuntu)
+smtpd_banner = $myhostname ESMTP
+#
+# Satır 650 civarı: ekleyin
+sendmail_path = /usr/sbin/postfix
+#
+# Satır 655 civarı: ekleyin
+newaliases_path = /usr/bin/newaliases
+#
+# Satır 660 civarı: ekleyin
+mailq_path = /usr/bin/mailq
+#
+# Satır 666 civarı: ekleyin
+setgid_group = postdrop
+#
+# Satır 670 civarı: yorum ekleyin
+#html_directory =
+#
+# Satır 674 civarı: yorum ekleyin
+#manpage_directory =
+#
+# Satır 679 civarı: yorum ekleyin
+#sample_directory =
+#
+# Satır 683 civarı: yorum ekleyin
+#readme_directory =
+#
+# en sona ekleyin: 
+# eposta boyutu limiti 10M
+message_size_limit = 10485760
+# eposta kutusu limiti 1G
+mailbox_size_limit = 1073741824
+# SMTP-Auth ayarları
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = private/auth
+smtpd_sasl_auth_enable = yes
+smtpd_sasl_security_options = noanonymous
+smtpd_sasl_local_domain = $myhostname
+smtpd_recipient_restrictions = permit_mynetworks, permit_auth_destination, permit_sasl_authenticated, reject
+#
+# 1.4. Takma adları aktif et (5.2. bölümünde açıklanacaktır) 
+sudo newaliases
+# 1.5. Postfix'i tekrar başlat
+sudo systemctl restart postfix 
+
+
+#---2. Dovecot Yükle ve Yapılandır
+# 2.1. Dovecot core, pop3 ve imap eklentilerini kur
+sudo apt -y install dovecot-core dovecot-pop3d dovecot-imapd 
+#
+# 2.2. Dovecot ana yapılandırması
+sudo nano /etc/dovecot/dovecot.conf
+# Satır 30 civarı: yorumu kaldır
+listen = *, ::
+#
+# 2.3. Dovecot auth yapılandırması
+sudo nano /etc/dovecot/conf.d/10-auth.conf
+# Satır 10 civarı: yorumu kaldır ve değiştir
+disable_plaintext_auth = no
+#
+# Satır 100 civarı: ekle
+auth_mechanisms = plain login
+#
+# 2.4. Dovecot mail yapılandırması
+sudo nano /etc/dovecot/conf.d/10-mail.conf
+# Satır 30 civarı: Maildir olarak değiştir
+mail_location = maildir:~/Maildir
+#
+# 2.5. Dovecot master yapılandırması
+sudo nano /etc/dovecot/conf.d/10-master.conf
+# Satır 96-98 civarı: yorumu kaldır ve ekle
+# Postfix smtp-auth
+unix_listener /var/spool/postfix/private/auth {
+    mode = 0666
+    user = postfix
+    group = postfix
+}
+#
+# 2.6. Dovecot'u Tekrar Başlat
+sudo systemctl restart dovecot 
+
+#---Kısa Bir Ara
+# Bu aşamada çok temel bir şekilde eposta yapılandırmasını tamamlamış durumdayız. 
+#   mail.karasite.com sunucusundaki bütün kullanıcılar eposta adresine sahip durumdadır.
+#   25 numaralı porttan SMTP'ye, 143 numaralı porttan IMAP sunucusuna erişebilirler. Ancak
+#   maalesef, mail alımı ve gönderimi aşamasında herhangi bir şifreleme yoktur.
+#
+# Bir sonraki aşamada, SSL şifrelemesi ekleyip SMTP portunu 587 olarak değiştireceğiz.
+#
+# Mail sunucumuz için SSL sertifikası almanın en kolay yolu:
+#   Apache2 yükleyin (UbuntudaLAMP dökümanı)
+#   mail.karasite.com adıyla bir site yaratın
+#   Certbot kullanarak siteyi https haline getirin. (UbuntudaCertbot dökümanı)
+#   Bu şekilde SSL sertifikası almış olursunuz
+#
+# Bir sonraki bölümde, aşağıdaki sertifikaların bulunduğunu varsayacağım
+#    /etc/letsencrypt/live/mail.karasite.com/fullchain.pem
+#    /etc/letsencrypt/live/mail.karasite.com/privkey.pem
+
+
+#---3. Postfix ve Dovecot'a SSL/TLS Ekle
+# 3.1. Postfix ana yapılandırma
+sudo nano /etc/postfix/main.cf 
+#   En sona ekle
+smtpd_use_tls = yes
+smtp_tls_mandatory_protocols = !SSLv2, !SSLv3
+smtpd_tls_mandatory_protocols = !SSLv2, !SSLv3
+smtpd_tls_cert_file = /etc/letsencrypt/live/mail.karasite.com/fullchain.pem
+smtpd_tls_key_file = /etc/letsencrypt/live/mail.karasite.com/privkey.pem
+smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
+#
+# 3.2. Postfix master yapılandırma
+sudo nano /etc/postfix/master.cf
+#  Satır 17-21 civarı: yorumları kaldırarak aşağıdaki hale getirin
+submission inet n       -       y       -       -       smtpd
+  -o syslog_name=postfix/submission
+#  -o smtpd_tls_security_level=encrypt
+  -o smtpd_sasl_auth_enable=yes
+  -o smtpd_tls_auth_only=yes
+#  Satır 29-31 civarı: yorumları kaldırarak aşağıdaki hale getirin
+smtps     inet  n       -       y       -       -       smtpd
+  -o syslog_name=postfix/smtps
+  -o smtpd_tls_wrappermode=yes
+#
+# 3.3. Dovecot yapılandırma
+sudo nano /etc/dovecot/conf.d/10-ssl.conf
+#   Satır 6 civarı: aşağıdaki şekilde değiştirin
+ssl = yes
+#   Satır 12 ve 13: yorumları kaldırarak sertifika yollarını ekleyin
+ssl_cert = </etc/letsencrypt/live/mail.karasite.com/fullchain.pem
+ssl_key = </etc/letsencrypt/live/mail.karasite.com/privkey.pem
+#
+# 3.4. Postfix ve Dovecot Yeniden Başlatın
+sudo systemctl restart postfix dovecot 
+
+#---4. Kullanıcı Eposta Erişim Ayarları
+# mail.karasite.com adresindeki Exforge Linux kullanıcısı için
+# Ayarlarınızı aşağıdaki şekilde ayarlayın:
+#  exforge --> kullanıcı adınız
+#  mail.karasite.com --> sunucu bilgisayar adınız
+#  karasite.com --> alan adınız
+#
+# Thunderbird Yapılandırması:
+#  Your name: Exforge
+#  Email address: exforge@karasite.com
+#  Password: (Your Linux Password)
+#  Incoming: IMAP  mail.karasite.com  143  STARTTLS  Normal password
+#  Outgoing: SMTP  mail.karasite.com  465  SSL/TLS   Normal password
+#  Username: Incoming: exforge        Outgoing: exforge
+#     
+#  Benim tanımlama ekran görüntüm:
+#     https://imgur.com/nUrjZTg
+
+#---5. Hesap Yönetimi
+# 5.1. Linux sunucudaki bütün kullanıcılar otomatik olarak kendi kullanıcı
+#   kodları ve şifreleri ile eposta hesabı sahibi olacaklardır.
+# Yeni bir eposta kullanıcısı yaratmak için, sunucunuza kullanıcı eklemeniz gerekir
+sudo useradd -d /home/exforge -m exforge
+#   Ayrıca bir de şifre vermeniz gerekir
+sudo passwd exforge
+#
+# 5.2. Takma ad (alias) kullanımı.
+#   exforge kullanıcımız için postmaster ve webmaster şeklinde iki takma ad oluşturalım.
+#   Önce Linux kullanıcılarını yaratalım
+sudo useradd -d /home/postmaster -m postmaster
+sudo useradd -d /home/webmaster -m webmaster
+sudo passwd postmaster
+sudo passwd webmaster
+#   /etc/aliases file dosyasına ekleyelim
+sudo nano /etc/aliases
+#_______________________________________
+# See man 5 aliases for format
+postmaster:    exforge
+webmaster:     exforge
+#_______________________________________
+#
+#   Takma adları aktifleştirelim
+sudo newaliases
+# 
+# 5.3. Postfix ve Dovecot'u yeniden başlat
+sudo systemctl restart postfix dovecot
+
+
+
+
+
+
