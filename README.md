@@ -10,4 +10,6 @@ AHT-WordpressOnUbuntu: Ubuntu sunucu üzerine Wordpress kurulumu ve aktivasyonu.
 
 AHT-MariadbOnUbuntu: Ubuntu sunucu üzerine Mariadb kurulumu, temel işlemler ve aktif pasif yineleme (replication)
 
+AHT-SimpleMailServerOnUbuntu: Ubuntu sunucu üzerine basit bir eposta sunucusu kurulumu. Postfix ve Dovecot kullanılmıştır. Linux sunucu üzerindeki kullanıcılar için eposta kullanılabilecektir.
+
 
