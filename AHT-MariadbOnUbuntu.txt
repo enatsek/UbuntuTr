@@ -1,7 +1,7 @@
 Ubuntu'da Mariadb: Ubuntu 20.04 Üzerinde MariaDB Dökümanı
 
 
-#---Copyright (C) 2020 Exforge exforge@karasite.com
+#---Copyright (C) 2020 Exforge exforge@x386.xyz
 # Bu program özgür yazılımdır: Özgür Yazılım Vakfı tarafından yayımlanan 
 # GNU Genel Kamu Lisansı’nın sürüm 3 ya da daha sonraki sürümlerinin 
 # hükümleri altında yeniden dağıtabilir ve/veya değiştirebilirsiniz.
